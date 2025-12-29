@@ -4,77 +4,100 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-export default function ShootingStars({ count = 6 }) {
-    const group = useRef();
+export default function ShootingStars({ count = 4 }) {
+  const group = useRef();
 
-    const stars = useMemo(() => {
-        const arr = [];
+  const stars = useMemo(
+    () =>
+      new Array(count).fill().map(() => ({
+        pos: new THREE.Vector3(
+          -70 - Math.random() * 40,
+          Math.random() * 40 + 10,
+          -20
+        ),
+        speed: Math.random() * 0.3 + 0.18,
+        life: Math.random() * 3 + 2,
+        delay: Math.random() * 6,
+        active: false,
+      })),
+    [count]
+  );
 
-        for (let i = 0; i < count; i++) {
-            arr.push({
-                position: new THREE.Vector3(
-                    -55,
-                    Math.random() * 35 + 5,
-                    -20
-                ),
-                speed: Math.random() * 0.15 + 0.08,
-                life: Math.random() * 8 + 6,
-                opacity: 0
-            });
+  const dir = new THREE.Vector3(1.4, 2.55, 0.1).normalize();
+
+  useFrame(() => {
+    group.current.children.forEach((mesh, i) => {
+      const s = stars[i];
+
+      if (!s.active) {
+        s.delay -= 0.02;
+        if (s.delay <= 0) {
+          s.active = true;
+          mesh.visible = true;
         }
+        return;
+      }
 
-        return arr;
-    }, [count]);
+      mesh.position.addScaledVector(dir, s.speed);
+      s.life -= 0.02;
 
-    const angle = -18 * (Math.PI / 180);
+      mesh.material.uniforms.uLife.value = s.life;
 
-    // direction vector (right + slightly down)
-    const direction = new THREE.Vector3(1, -0.35, -0.15).normalize();
+      if (s.life <= 0 || mesh.position.x > 90 || mesh.position.y < -25) {
+        s.pos.set(
+          -70 - Math.random() * 40,
+          Math.random() * 40 + 10,
+          -20
+        );
+        mesh.position.copy(s.pos);
 
-    useFrame(() => {
-        group.current.children.forEach((star, i) => {
-            const s = stars[i];
-
-            // move along direction
-            star.position.addScaledVector(direction, s.speed);
-
-            // fade in / out
-            const mat = star.material;
-            s.opacity = Math.min(s.opacity + 0.025, 1);
-            mat.opacity = Math.pow(s.opacity, 1.5);
-
-            s.life -= 0.02;
-
-            if (s.life <= 0 || star.position.x > 70 || star.position.y < -25) {
-                star.position.set(-55, Math.random() * 35 + 5, -20);
-
-                s.speed = Math.random() * 0.15 + 0.08;
-                s.life = Math.random() * 9 + 6;
-                s.opacity = 0;
-            }
-        });
+        s.speed = Math.random() * 0.3 + 0.18;
+        s.life = Math.random() * 3 + 2;
+        s.delay = Math.random() * 5;
+        s.active = false;
+        mesh.visible = false;
+      }
     });
+  });
 
+  return (
+    <group ref={group}>
+      {stars.map((_, i) => (
+        <mesh key={i}>
+          <planeGeometry args={[5, 1]} />
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+            uniforms={{
+              uLife: { value: 1.0 },
+            }}
+            fragmentShader={`
+              uniform float uLife;
+              varying vec2 vUv;
 
+              void main() {
+                float head = exp(-pow((vUv.x - 0.15) * 6.0, 2.0));
+                float tail = smoothstep(1.0, 0.0, vUv.x) * 0.9;
+                float shape = max(head, tail);
 
-    return (
-        <group ref={group}>
-            {stars.map((s, i) => (
-                <mesh key={i} position={s.position} rotation={[Math.PI / 2, 0, 0]}>
-                    {/* thinner + longer */}
-                    <cylinderGeometry args={[0.015, 0.002, 3.8, 12]} />
+                float alpha = shape * uLife * 1.4;
 
-                    {/* soft dreamy glow */}
-                    <meshBasicMaterial
-                        color="#ffffff"
-                        transparent
-                        opacity={0.0}
-                        blending={THREE.AdditiveBlending}
-                        depthWrite={false}
-                    />
+                vec3 color = mix(vec3(0.7, 0.9, 1.0), vec3(1.0), head);
 
-                </mesh>
-            ))}
-        </group>
-    );
+                gl_FragColor = vec4(color * shape * 2.0, alpha);
+              }
+            `}
+            vertexShader={`
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
 }

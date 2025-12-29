@@ -4,6 +4,10 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useRef } from "react";
+import ShootingStars from '@/app/components/shootingStars.jsx'
+
+import MainHeading from "@/app/components/MainHeading"
+import Planet from "@/app/components/Planet";
 
 function GradientSky() {
   const ref = useRef();
@@ -132,6 +136,17 @@ export default function Home() {
 
         <GradientSky />
         <StarSky />
+        <group position={[0,0,-6]}>
+
+  <Planet textureUrl="/textures/8k_mars.jpg" position={[-60, 5, 6]} scale={2.5} />
+  <Planet textureUrl="/textures/8k_jupiter.jpg" position={[-30, 9, -7]} scale={4.2} />
+  <Planet textureUrl="/textures/8k_earth_daymap.jpg" position={[0, 1.2, 0]} scale={2.7} />
+  <Planet textureUrl="/textures/4k_ceres_fictional.jpg" position={[30, -0.6, 2]} scale={2.2} />
+
+</group>
+
+        {/* <ShootingStars/> */}
+        <MainHeading/>
 
         <OrbitControls enableZoom={false} />
       </Canvas>
